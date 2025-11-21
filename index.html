@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#050505">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Snake Neón IA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -12,43 +15,71 @@
         font-family: 'Rajdhani', sans-serif;
         background-color: #050505;
         color: #e2e8f0;
-        touch-action: none; /* Evitar scroll y zoom */
+        touch-action: none;
         overflow: hidden;
         user-select: none;
         -webkit-user-select: none;
+        overscroll-behavior: none;
+      }
+
+      * {
         -webkit-tap-highlight-color: transparent;
+        outline: none;
       }
       
       .retro-font {
         font-family: 'Press Start 2P', cursive;
       }
 
-      /* Estilos Botones Táctiles */
+      /* Estilos Botones Táctiles Mejorados */
       .d-pad-btn {
-        background: rgba(30, 41, 59, 0.8);
-        border: 1px solid rgba(71, 85, 105, 0.5);
-        border-radius: 16px;
-        box-shadow: 0 4px 0 #0f172a;
-        transition: transform 0.1s, box-shadow 0.1s;
+        background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+        border: 1px solid rgba(71, 85, 105, 0.4);
+        border-radius: 18px;
+        box-shadow: 0 6px 0 #020617, 0 10px 10px rgba(0,0,0,0.5);
+        transition: all 0.05s ease-out;
         display: flex;
         align-items: center;
         justify-content: center;
         touch-action: manipulation;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .d-pad-btn::after {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.2s;
       }
       
       .d-pad-btn:active {
-        transform: translateY(4px);
-        box-shadow: 0 0 0 #0f172a;
-        background: rgba(79, 70, 229, 0.5); /* Indigo tint */
+        transform: translateY(6px);
+        box-shadow: 0 0 0 #020617, inset 0 2px 5px rgba(0,0,0,0.5);
         border-color: #6366f1;
+      }
+
+      .d-pad-btn:active::after {
+        opacity: 1;
+      }
+
+      .d-pad-btn svg {
+        filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
       }
 
       canvas {
         image-rendering: pixelated;
-        box-shadow: 0 0 25px rgba(0,0,0,0.6);
+        box-shadow: 0 0 30px rgba(0,0,0,0.8);
       }
 
       .hidden { display: none !important; }
+
+      /* Input Styles */
+      #themeInput::placeholder {
+        color: #475569;
+      }
     </style>
     <script type="importmap">
     {
@@ -58,104 +89,132 @@
     }
     </script>
   </head>
-  <body class="h-screen w-screen flex flex-col items-center justify-between p-2 bg-black text-white overflow-hidden">
+  <body class="h-screen w-screen flex flex-col items-center justify-between p-4 bg-black text-white overflow-hidden fixed inset-0">
 
     <!-- Header: Puntuación -->
-    <div class="w-full max-w-md flex justify-between items-end px-4 pt-2 pb-2 border-b border-gray-900 z-10 bg-black/50 backdrop-blur-sm">
+    <div class="w-full max-w-md flex justify-between items-end pb-2 border-b border-gray-900/50 z-10">
       <div>
-        <div class="text-[10px] text-gray-500 uppercase tracking-widest">PUNTOS</div>
-        <div id="scoreDisplay" class="text-3xl font-bold text-emerald-400 retro-font leading-tight drop-shadow-md">0</div>
+        <div class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">PUNTOS</div>
+        <div id="scoreDisplay" class="text-4xl font-bold text-emerald-400 retro-font leading-tight drop-shadow-[0_0_10px_rgba(52,211,153,0.5)]">0</div>
       </div>
       <div class="text-right">
-        <div class="text-[10px] text-gray-500 uppercase tracking-widest">RÉCORD</div>
-        <div id="highScoreDisplay" class="text-xl font-bold text-indigo-400 retro-font leading-tight drop-shadow-md">0</div>
+        <div class="text-[10px] text-gray-500 uppercase tracking-widest font-bold">RÉCORD</div>
+        <div id="highScoreDisplay" class="text-2xl font-bold text-indigo-400 retro-font leading-tight drop-shadow-[0_0_10px_rgba(129,140,248,0.5)]">0</div>
       </div>
     </div>
 
     <!-- Contenedor del Juego -->
-    <div class="relative w-full max-w-md aspect-square flex items-center justify-center my-auto px-2">
-      <canvas id="gameCanvas" width="600" height="600" class="w-full h-full bg-gray-900 rounded-xl border border-gray-800"></canvas>
-      
-      <!-- Capas de UI (Start/Game Over) -->
-      <div id="overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm rounded-xl z-20 transition-all duration-300">
-        
-        <!-- Pantalla Inicio -->
-        <div id="startScreen" class="text-center p-4 flex flex-col items-center w-full">
-          <h1 class="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 to-cyan-500 retro-font mb-2 leading-tight filter drop-shadow-lg">SNAKE<br>NEÓN</h1>
-          <p class="text-gray-500 text-xs mb-8 font-mono tracking-widest">EDICIÓN IA • MÓVIL</p>
-          <button id="startBtn" class="w-4/5 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xl border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1">
-             JUGAR
-          </button>
-        </div>
-
-        <!-- Pantalla Game Over -->
-        <div id="gameOverScreen" class="text-center p-4 hidden w-full">
-          <h2 class="text-5xl text-red-500 retro-font mb-4 drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">FIN</h2>
+    <div class="relative w-full max-w-md flex-grow flex items-center justify-center px-1 py-2">
+      <!-- Canvas wrapper para mantener ratio -->
+      <div class="relative w-full aspect-square max-h-[65vh]">
+          <canvas id="gameCanvas" width="600" height="600" class="w-full h-full bg-gray-900 rounded-2xl border border-gray-800/50"></canvas>
           
-          <div class="bg-gray-900/80 p-4 rounded-xl border-l-4 border-indigo-500 mb-8 max-w-xs mx-auto shadow-inner">
-            <p class="text-xs text-gray-400 uppercase mb-1 text-left font-bold">La IA dice:</p>
-            <p id="aiMessage" class="text-indigo-300 text-base italic leading-snug">
-              Cargando consejo...
-            </p>
+          <!-- Capas de UI -->
+          <div id="overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm rounded-2xl z-20 transition-all duration-300">
+            
+            <!-- Pantalla Inicio -->
+            <div id="startScreen" class="text-center p-4 flex flex-col items-center w-full">
+              <div class="mb-6 relative">
+                 <h1 class="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 to-cyan-400 retro-font leading-tight filter drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">SNAKE</h1>
+                 <div class="text-indigo-400 text-xl retro-font tracking-widest absolute -bottom-4 right-0 rotate-[-5deg] drop-shadow-lg">NEÓN AI</div>
+              </div>
+              
+              <button id="startBtn" class="w-64 py-5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-[0_6px_0_#065f46] active:shadow-[0_0_0_#065f46] active:translate-y-[6px] transition-all flex items-center justify-center gap-3 text-2xl tracking-wider">
+                 <span>JUGAR</span>
+                 <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+            </div>
+
+            <!-- Pantalla Game Over -->
+            <div id="gameOverScreen" class="text-center p-4 hidden w-full">
+              <h2 class="text-6xl text-red-500 retro-font mb-6 drop-shadow-[0_0_25px_rgba(239,68,68,0.6)]">FIN</h2>
+              
+              <div class="bg-gray-900/90 p-5 rounded-xl border-l-4 border-indigo-500 mb-8 max-w-[85%] mx-auto shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 opacity-10 pointer-events-none">
+                    <svg width="64" height="64" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
+                </div>
+                <p class="text-[10px] text-indigo-400 uppercase mb-2 text-left font-bold tracking-wider">COMENTARIO DE LA IA</p>
+                <p id="aiMessage" class="text-gray-200 text-lg italic leading-relaxed font-serif">
+                  Cargando...
+                </p>
+              </div>
+              
+              <button id="restartBtn" class="w-64 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl shadow-[0_6px_0_#3730a3] active:shadow-[0_0_0_#3730a3] active:translate-y-[6px] transition-all text-xl tracking-wide">
+                REINTENTAR
+              </button>
+            </div>
+
+            <!-- Pantalla Pausa -->
+            <div id="pauseScreen" class="text-center p-4 hidden">
+                <h2 class="text-5xl text-yellow-400 retro-font mb-8 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]">PAUSA</h2>
+                <button id="resumeBtn" class="px-10 py-4 bg-yellow-600 text-white font-bold rounded-xl shadow-[0_5px_0_#854d0e] active:translate-y-[5px] active:shadow-none text-xl">CONTINUAR</button>
+            </div>
           </div>
-          
-          <button id="restartBtn" class="w-4/5 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl shadow-lg transition-all active:scale-95 text-xl border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1">
-            REINTENTAR
-          </button>
-        </div>
 
-        <!-- Pantalla Pausa -->
-        <div id="pauseScreen" class="text-center p-4 hidden">
-            <h2 class="text-4xl text-yellow-400 retro-font mb-6">PAUSA</h2>
-            <button id="resumeBtn" class="px-8 py-3 bg-yellow-600 text-white font-bold rounded-xl text-lg">CONTINUAR</button>
-        </div>
-      </div>
-
-      <!-- Loader IA -->
-      <div id="aiLoader" class="absolute inset-0 bg-black/70 z-30 flex flex-col items-center justify-center hidden rounded-xl backdrop-blur-sm">
-          <div class="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-          <span class="text-indigo-400 text-sm font-bold animate-pulse tracking-widest">CREANDO TEMA...</span>
+          <!-- Loader IA -->
+          <div id="aiLoader" class="absolute inset-0 bg-black/80 z-30 flex flex-col items-center justify-center hidden rounded-2xl backdrop-blur-md transition-all">
+              <div class="relative w-16 h-16 mb-4">
+                 <div class="absolute inset-0 border-4 border-indigo-900 rounded-full"></div>
+                 <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+              <span class="text-indigo-300 text-xs font-bold animate-pulse tracking-[0.2em]">GENERANDO TEMA...</span>
+          </div>
       </div>
     </div>
 
     <!-- Controles e Input IA -->
-    <div class="w-full max-w-md flex flex-col gap-3 pb-4 px-4 flex-grow justify-end">
+    <div class="w-full max-w-md flex flex-col gap-2 pb-safe-area px-2 flex-shrink-0">
       
-      <!-- Generador de Temas IA -->
-      <div class="relative w-full flex gap-2">
-        <input type="text" id="themeInput" placeholder="Tema (ej: Cyberpunk, Lava, Hielo)..." class="flex-grow bg-gray-900/80 border border-gray-800 text-gray-300 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner">
-        <button id="themeBtn" class="bg-indigo-600 text-white px-5 rounded-xl text-xl font-bold active:bg-indigo-700 shadow-lg border-b-4 border-indigo-800 active:border-b-0 active:translate-y-1 transition-all">
+      <!-- Generador de Temas -->
+      <div class="flex gap-2 mb-2">
+        <div class="relative flex-grow">
+            <input type="text" id="themeInput" placeholder="Describe un tema (ej: Matrix, Lava, Hielo)..." class="w-full bg-gray-900 border border-gray-700 text-gray-100 text-base rounded-xl px-4 py-3 pl-10 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/50 transition-all shadow-inner">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">✨</span>
+        </div>
+        <button id="themeBtn" class="bg-indigo-600 text-white px-4 rounded-xl text-2xl font-bold active:bg-indigo-700 shadow-[0_4px_0_#312e81] active:shadow-none active:translate-y-[4px] transition-all w-14 flex items-center justify-center">
           🎨
         </button>
       </div>
 
-      <!-- D-Pad Móvil -->
-      <div class="grid grid-cols-3 grid-rows-2 gap-3 h-36 w-full mt-1">
-        <!-- Fila 1 -->
-        <div class="flex items-center justify-center">
-             <button id="pauseBtn" class="w-14 h-14 rounded-full bg-gray-800/80 text-yellow-500 flex items-center justify-center border border-gray-700 shadow-md active:scale-95 active:bg-gray-700 transition-all">
-             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+      <!-- D-Pad Grid -->
+      <div class="grid grid-cols-3 gap-2 h-40 w-full">
+        
+        <!-- Botón Pausa (Esquina Superior Izquierda) -->
+        <div class="flex items-end justify-end pb-1">
+             <button id="pauseBtn" class="w-12 h-12 rounded-full bg-gray-800 text-yellow-500 flex items-center justify-center border border-gray-700 shadow-lg active:bg-gray-700 active:scale-95 transition-all">
+             <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
            </button>
         </div>
-        <button id="btnUp" class="d-pad-btn" data-dir="UP">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-        </button>
-        <div class="flex items-center justify-center"></div>
 
-        <!-- Fila 2 -->
-        <button id="btnLeft" class="d-pad-btn" data-dir="LEFT">
+        <!-- ARRIBA -->
+        <div class="flex justify-center items-end">
+           <button id="btnUp" class="d-pad-btn w-full h-full max-h-16" data-dir="UP">
+             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+           </button>
+        </div>
+
+        <div class="flex items-end justify-start pb-1 pl-2">
+            <!-- Espacio vacío o info extra -->
+        </div>
+
+        <!-- IZQUIERDA -->
+        <button id="btnLeft" class="d-pad-btn h-full max-h-16" data-dir="LEFT">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         </button>
-        <button id="btnDown" class="d-pad-btn" data-dir="DOWN">
+
+        <!-- ABAJO -->
+        <button id="btnDown" class="d-pad-btn h-full max-h-16" data-dir="DOWN">
            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
         </button>
-        <button id="btnRight" class="d-pad-btn" data-dir="RIGHT">
+
+        <!-- DERECHA -->
+        <button id="btnRight" class="d-pad-btn h-full max-h-16" data-dir="RIGHT">
            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
       </div>
     </div>
 
-    <!-- Lógica Principal (ES6 Module) -->
+    <!-- Lógica Principal -->
     <script type="module" src="index.js"></script>
   </body>
 </html>

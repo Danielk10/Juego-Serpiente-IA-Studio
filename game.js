@@ -237,12 +237,7 @@ export class SnakeGame {
             this.lastFrameTime = timestamp;
         }
         
-        // Dibujar siempre para mantener el tema actualizado si cambiara dinámicamente
-        // En este caso, pasamos el tema actual desde fuera en render
-        // Pero para simplicidad, el Game Loop dispara callbacks de dibujo o guarda referencia al tema.
-        // Aquí asumimos que 'draw' se llama desde fuera o guardamos el tema.
-        // Para POO estricto, pasaremos un callback 'onDraw' o guardaremos el tema en el estado.
-        
+        // Dibujar siempre para mantener el tema actualizado
         if (this.onDrawRequest) this.onDrawRequest();
 
         this.animationFrameId = requestAnimationFrame((t) => this.gameLoop(t));
